@@ -24,7 +24,7 @@ class WeatherDetailViewController: UIViewController {
         title = NSLocalizedString("Open Weather", comment: "VC title")
         automaticallyAdjustsScrollViewInsets = false
     }
-
+    
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         
@@ -49,7 +49,7 @@ class WeatherDetailViewController: UIViewController {
         super.traitCollectionDidChange(previousTraitCollection)
         collectionView.collectionViewLayout.invalidateLayout()
     }
-
+    
 }
 
 fileprivate let cellReuseIdentifier = "WeatherCollectionViewCell"

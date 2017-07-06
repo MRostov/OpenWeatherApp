@@ -1,120 +1,90 @@
 //
-//  WeatherViewController.swift
-//  OpenWeather
+//  InspirationsViewController.swift
+//  RWDevCon
 //
-//  Created by Mikhail Rostov on 28.06.17.
-//  Copyright © 2017 Dorada App Software Ltd. All rights reserved.
+//  Created by Mic Pringle on 02/03/2015.
+//  Copyright (c) 2015 Ray Wenderlich. All rights reserved.
 //
 
-import Foundation
 import UIKit
 
-class WeatherViewController: UIViewController {
-    @IBOutlet var collectionView : UICollectionView!
-    @IBOutlet var activityIndicator : UIActivityIndicatorView!
+class WeatherViewController: UICollectionViewController {
     
-    @IBOutlet var weatherLocationView : WeatherLocationView!
     
-    var forecastWeek = ForecastWeek()
+    let weathers = Weather.allWeather()
     
-    var networkController : WeatherAPIRequests = NetworkController()
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+        if let patternImage = UIImage(named: "Pattern") {
+            view.backgroundColor = UIColor(patternImage: patternImage)
+        }
+        let button = UIBarButtonItem(barButtonSystemItem: UIBarButtonSystemItem.add, target: self, action: #selector(addAction))
+        navigationItem.rightBarButtonItem = button
         title = NSLocalizedString("Open Weather", comment: "VC title")
-        automaticallyAdjustsScrollViewInsets = false
-    }
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        activityIndicator.startAnimating()
-        self.weatherLocationView.isHidden = true
-        let forecastController = ForecastController(networkController: networkController)
-        forecastController.getForecast { [weak self] (networkforcast, error) in
-            guard let `self` = self else { return }
-            self.activityIndicator.stopAnimating()
-            if let networkforcast = networkforcast {
-                self.forecastWeek = networkforcast
-                self.weatherLocationView.city = networkforcast.city
-                self.collectionView.reloadData()
-                self.weatherLocationView.isHidden = false
-            } else if let error = error {
-                SimpleAlert.show(fromViewController: self, title: error.localizedDescription, message: nil)
-            }
+        collectionView!.backgroundColor = UIColor.clear
+        collectionView!.decelerationRate = UIScrollViewDecelerationRateFast
+        if #available(iOS 10.0, *) {
+            collectionView?.isPrefetchingEnabled = false
         }
     }
     
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        collectionView.collectionViewLayout.invalidateLayout()
-    }
-    
 }
 
-fileprivate let cellReuseIdentifier = "WeatherCollectionViewCell"
-fileprivate let headerReuseIdentifier = "WeatherCollectionViewHeader"
 
-extension WeatherViewController : UICollectionViewDataSource {
-    func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        let day = forecastWeek.days[section]
-        return day.items.count
+extension WeatherViewController {
+    
+    
+    override func numberOfSections(in collectionView: UICollectionView) -> Int {
+        return 1
     }
     
+    func addAction(){
+        
+        let storyboard = UIStoryboard(name: "SearchCity", bundle: nil)
+        let vc = storyboard.instantiateViewController(withIdentifier: "searchCityController") as UIViewController
+        present(vc, animated: true, completion: nil)
+        print("add city")
+    }
     
-    func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        let cell = collectionView .dequeueReusableCell(withReuseIdentifier: cellReuseIdentifier, for: indexPath) as! WeatherCollectionViewCell
-        cell.networkController = networkController
-        let day = forecastWeek.days[indexPath.section]
-        cell.forecast = day.items[indexPath.row]
+    func tapFunction(sender: UIGestureRecognizer) {
+        //   Weather.allWeather()
+        print (self.weathers[(sender.view?.tag)!].title)
+        
+        let currentCityName = self.weathers[(sender.view?.tag)!].title.replacingOccurrences(of: " ", with: "", options: .literal, range: nil)
+        if currentCityName != nil {
+            UserDefaults.standard.set(currentCityName, forKey: "currentCityName")
+        }
+        else{
+            UserDefaults.standard.set(self.weathers[(sender.view?.tag)!].title, forKey: "currentCityName")
+        }
+        let storyboard = UIStoryboard(name: "WeatherDetail", bundle: nil)
+        let vc = storyboard.instantiateViewController(withIdentifier: "navigationController") as UIViewController
+        present(vc, animated: true, completion: nil)
+        
+        
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
+        return weathers.count
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        
+        let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "WeatherCell", for: indexPath) as! WeatherCell
+        cell.tag = indexPath.row
+        print("indexPath.row = ", indexPath.row)
+        let tap = UITapGestureRecognizer(target: self, action: #selector(WeatherViewController.tapFunction))
+        cell.isUserInteractionEnabled = true
+        cell.addGestureRecognizer(tap)
+        cell.weather = weathers[indexPath.item]
+        
         return cell
-    }
-    
-    func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return forecastWeek.days.count
-    }
-    
-    
-    func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
-        let headerView = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: headerReuseIdentifier, for: indexPath) as! WeatherCollectionViewHeader
-        headerView.forecastday = forecastWeek.days[indexPath.section]
-        return headerView
-    }
-}
-
-extension WeatherViewController : UICollectionViewDelegate {
-    
-}
-
-fileprivate let itemsPerRow: CGFloat = 24.0/3.0
-fileprivate let sectionInsets = UIEdgeInsets(top: 4.0, left: 4.0, bottom: 14.0, right: 4.0)
-fileprivate let cellSpacing: CGFloat = 2.0
-
-extension WeatherViewController : UICollectionViewDelegateFlowLayout {
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
         
-        let paddingSpace = sectionInsets.left * (itemsPerRow + 1)
-        let availableWidth = collectionView.frame.width - paddingSpace
-        let widthPerItem = availableWidth / itemsPerRow
-        
-        return CGSize(width: widthPerItem, height: widthPerItem * 2)
     }
     
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
-        return sectionInsets
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumLineSpacingForSectionAt section: Int) -> CGFloat {
-        return sectionInsets.left
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
-        return CGSize(width: 0, height: 20)
-    }
-    
-    func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, minimumInteritemSpacingForSectionAt section: Int) -> CGFloat {
-        return cellSpacing
-    }
     
 }
